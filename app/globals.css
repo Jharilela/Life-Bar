@@ -218,3 +218,69 @@ select:focus-visible {
 .tabular {
   font-variant-numeric: tabular-nums;
 }
+
+@keyframes lb-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes lb-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes lb-zoom-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes lb-zoom-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+}
+
+.lb-dialog-overlay[data-state="open"] {
+  animation: lb-fade-in 150ms ease-out;
+}
+.lb-dialog-overlay[data-state="closed"] {
+  animation: lb-fade-out 120ms ease-in;
+}
+.lb-dialog-content[data-state="open"] {
+  animation: lb-zoom-in 150ms ease-out;
+}
+.lb-dialog-content[data-state="closed"] {
+  animation: lb-zoom-out 120ms ease-in;
+}
+
+.lb-stat-tile {
+  background: var(--panel);
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.lb-stat-tile:hover {
+  transform: translateY(-1px);
+  box-shadow: 2px 2px 0 0 var(--accent-soft);
+}

@@ -1,8 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { addMeasurement } from "@/app/dashboard/actions";
-import { MEASUREMENT_LABELS, MEASUREMENT_UNITS, type MeasurementType } from "@/lib/types";
+import {
+  MEASUREMENT_LABELS,
+  MEASUREMENT_UNITS,
+  type Measurement,
+  type MeasurementType,
+} from "@/lib/types";
 
 const TYPES: MeasurementType[] = [
   "blood_pressure",
@@ -20,11 +24,29 @@ function nowLocal() {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 }
 
-export function MeasurementForm() {
-  const [type, setType] = useState<MeasurementType>("blood_pressure");
+function toLocalInput(iso: string) {
+  const d = new Date(iso);
+  d.setSeconds(0, 0);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
+export function MeasurementForm({
+  defaultType = "blood_pressure",
+  initial,
+  onSubmit,
+  onCancel,
+  submitLabel = "Save reading",
+}: {
+  defaultType?: MeasurementType;
+  initial?: Measurement;
+  onSubmit: (formData: FormData) => void;
+  onCancel?: () => void;
+  submitLabel?: string;
+}) {
+  const [type, setType] = useState<MeasurementType>(initial?.type ?? defaultType);
 
   return (
-    <form action={addMeasurement} className="space-y-3">
+    <form action={onSubmit} className="space-y-3">
       <input type="hidden" name="unit" value={MEASUREMENT_UNITS[type]} />
       <div>
         <label className="lb-label" htmlFor="type">
@@ -50,7 +72,14 @@ export function MeasurementForm() {
           <label className="lb-label" htmlFor="label">
             Label
           </label>
-          <input className="lb-input" id="label" name="label" placeholder="e.g. Peak flow" required />
+          <input
+            className="lb-input"
+            id="label"
+            name="label"
+            placeholder="e.g. Peak flow"
+            defaultValue={initial?.label ?? ""}
+            required
+          />
         </div>
       )}
 
@@ -65,6 +94,7 @@ export function MeasurementForm() {
             step="any"
             id="value"
             name="value"
+            defaultValue={initial?.value ?? ""}
             required
           />
         </div>
@@ -79,6 +109,7 @@ export function MeasurementForm() {
               step="any"
               id="value_secondary"
               name="value_secondary"
+              defaultValue={initial?.value_secondary ?? ""}
               required
             />
           </div>
@@ -106,14 +137,21 @@ export function MeasurementForm() {
           type="datetime-local"
           id="taken_at"
           name="taken_at"
-          defaultValue={nowLocal()}
+          defaultValue={initial ? toLocalInput(initial.taken_at) : nowLocal()}
           required
         />
       </div>
 
-      <button type="submit" className="lb-btn lb-btn-primary w-full">
-        Save reading
-      </button>
+      <div className="flex gap-2">
+        <button type="submit" className="lb-btn lb-btn-primary flex-1">
+          {submitLabel}
+        </button>
+        {onCancel && (
+          <button type="button" className="lb-btn lb-btn-ghost" onClick={onCancel}>
+            Cancel
+          </button>
+        )}
+      </div>
     </form>
   );
 }

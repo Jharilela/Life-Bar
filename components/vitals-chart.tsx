@@ -1,147 +1,214 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import type { Measurement } from "@/lib/types";
 
-const WIDTH = 480;
-const HEIGHT = 190;
-const PAD_LEFT = 34;
-const PAD_RIGHT = 50;
-const PLOT_TOP = 14;
-const PLOT_BOTTOM = 160;
+export type RangeKey = "7d" | "30d" | "90d" | "all";
 
-function scaleY(value: number, min: number, max: number) {
-  const range = max - min || 1;
-  return PLOT_BOTTOM - ((value - min) / range) * (PLOT_BOTTOM - PLOT_TOP);
+const RANGE_DAYS: Record<RangeKey, number | null> = {
+  "7d": 7,
+  "30d": 30,
+  "90d": 90,
+  all: null,
+};
+
+export const RANGE_LABELS: Record<RangeKey, string> = {
+  "7d": "7D",
+  "30d": "30D",
+  "90d": "90D",
+  all: "All",
+};
+
+export function filterByRange(readings: Measurement[], range: RangeKey) {
+  const days = RANGE_DAYS[range];
+  if (days == null) return readings;
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  return readings.filter((r) => new Date(r.taken_at).getTime() >= cutoff);
 }
 
-function formatShortDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
+function formatAxisDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function BloodPressureChart({ readings }: { readings: Measurement[] }) {
-  const points = readings.slice(-8);
-  if (points.length < 2) {
+function formatTooltipDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function CustomTooltip({
+  active,
+  payload,
+  label,
+  unit,
+  secondaryLabel,
+}: {
+  active?: boolean;
+  payload?: Array<{ value: number; name: string; color: string }>;
+  label?: string;
+  unit: string;
+  secondaryLabel?: string;
+}) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div
+      className="rounded-lg border-2 px-3 py-2 shadow-[3px_3px_0_0_var(--accent-soft)]"
+      style={{ background: "var(--panel)", borderColor: "var(--line)" }}
+    >
+      <div className="text-[11px] text-[var(--muted)] mb-1">{label && formatTooltipDate(label)}</div>
+      {payload.map((p) => (
+        <div key={p.name} className="flex items-center gap-2 text-sm font-mono tabular font-bold">
+          <span
+            className="inline-block w-[8px] h-[8px] rounded-full"
+            style={{ background: p.color }}
+          />
+          {p.value}
+          <span className="text-xs font-body font-normal text-[var(--muted)]">
+            {unit} {secondaryLabel && payload.length > 1 ? `· ${p.name}` : ""}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Interactive trend chart for a single vital. Renders one or two series
+ * (e.g. blood pressure's systolic/diastolic) with a hover tooltip and a
+ * gradient fill so the direction of travel reads at a glance. */
+export function TrendChart({
+  readings,
+  unit,
+  colorA = "var(--chart-a)",
+  colorB,
+  labelA = "Value",
+  labelB,
+  gradientId,
+}: {
+  readings: Measurement[];
+  unit: string;
+  colorA?: string;
+  colorB?: string;
+  labelA?: string;
+  labelB?: string;
+  gradientId: string;
+}) {
+  const data = useMemo(
+    () =>
+      readings.map((r) => ({
+        date: r.taken_at,
+        a: r.value,
+        b: r.value_secondary ?? undefined,
+      })),
+    [readings]
+  );
+
+  if (data.length < 2) {
     return (
-      <p className="text-sm text-[var(--muted)]">
-        Log at least two blood pressure readings to see a trend.
-      </p>
+      <div
+        className="flex items-center justify-center h-[220px] rounded-lg text-sm text-[var(--muted)]"
+        style={{ border: "1.5px dashed var(--line)" }}
+      >
+        Log at least two readings to see a trend.
+      </div>
     );
   }
 
-  const allValues = points.flatMap((p) => [p.value, p.value_secondary ?? p.value]);
-  const min = Math.min(...allValues) - 6;
-  const max = Math.max(...allValues) + 6;
-  const plotWidth = WIDTH - PAD_LEFT - PAD_RIGHT;
-  const stepX = points.length > 1 ? plotWidth / (points.length - 1) : 0;
-  const xAt = (i: number) => PAD_LEFT + i * stepX;
-
-  const sysPts = points.map((p, i) => [xAt(i), scaleY(p.value, min, max)] as const);
-  const diaPts = points.map(
-    (p, i) => [xAt(i), scaleY(p.value_secondary ?? p.value, min, max)] as const
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <AreaChart data={data} margin={{ top: 10, right: 12, left: -12, bottom: 0 }}>
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={colorA} stopOpacity={0.28} />
+            <stop offset="95%" stopColor={colorA} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid stroke="#e7e2d2" strokeDasharray="3 3" vertical={false} />
+        <XAxis
+          dataKey="date"
+          tickFormatter={formatAxisDate}
+          tick={{ fontSize: 10, fill: "var(--muted)", fontFamily: "var(--font-mono)" }}
+          axisLine={{ stroke: "var(--line)" }}
+          tickLine={false}
+          minTickGap={24}
+        />
+        <YAxis
+          tick={{ fontSize: 10, fill: "var(--muted)", fontFamily: "var(--font-mono)" }}
+          axisLine={false}
+          tickLine={false}
+          width={38}
+          domain={["auto", "auto"]}
+        />
+        <Tooltip content={<CustomTooltip unit={unit} secondaryLabel={labelB} />} />
+        {colorB && <Legend wrapperStyle={{ fontSize: 11, fontFamily: "var(--font-body)" }} />}
+        <Area
+          type="monotone"
+          dataKey="a"
+          name={labelA}
+          stroke={colorA}
+          strokeWidth={2.5}
+          fill={`url(#${gradientId})`}
+          dot={{ r: 3, fill: colorA, strokeWidth: 0 }}
+          activeDot={{ r: 5 }}
+        />
+        {colorB && (
+          <Line
+            type="monotone"
+            dataKey="b"
+            name={labelB}
+            stroke={colorB}
+            strokeWidth={2.5}
+            dot={{ r: 3, fill: colorB, strokeWidth: 0 }}
+            activeDot={{ r: 5 }}
+          />
+        )}
+      </AreaChart>
+    </ResponsiveContainer>
   );
+}
 
-  const gridValues = [min + (max - min) * 0.9, min + (max - min) * 0.6, min + (max - min) * 0.3];
-  const last = points[points.length - 1];
+export function RangeToggle({
+  value,
+  onChange,
+}: {
+  value: RangeKey;
+  onChange: (range: RangeKey) => void;
+}) {
+  const [hovered, setHovered] = useState<RangeKey | null>(null);
+  const keys = Object.keys(RANGE_LABELS) as RangeKey[];
 
   return (
-    <div>
-      <svg
-        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        role="img"
-        aria-label={`Blood pressure over the last ${points.length} readings, most recent ${last.value} over ${last.value_secondary ?? "—"}`}
-        className="w-full h-auto block"
-      >
-        {gridValues.map((v) => (
-          <g key={v}>
-            <line
-              x1={PAD_LEFT}
-              y1={scaleY(v, min, max)}
-              x2={WIDTH - PAD_RIGHT}
-              y2={scaleY(v, min, max)}
-              stroke="#e7e2d2"
-              strokeWidth={1}
-            />
-            <text
-              x={PAD_LEFT - 8}
-              y={scaleY(v, min, max) + 3}
-              fontSize={10}
-              textAnchor="end"
-              fill="var(--muted)"
-              fontFamily="var(--font-mono)"
-            >
-              {Math.round(v)}
-            </text>
-          </g>
-        ))}
-
-        <polyline
-          points={sysPts.map(([x, y]) => `${x},${y}`).join(" ")}
-          fill="none"
-          stroke="var(--chart-a)"
-          strokeWidth={2.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <polyline
-          points={diaPts.map(([x, y]) => `${x},${y}`).join(" ")}
-          fill="none"
-          stroke="var(--chart-b)"
-          strokeWidth={2.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        {sysPts.map(([x, y], i) => (
-          <circle key={`s${i}`} cx={x} cy={y} r={i === sysPts.length - 1 ? 3.5 : 3} fill="var(--chart-a)" />
-        ))}
-        {diaPts.map(([x, y], i) => (
-          <circle key={`d${i}`} cx={x} cy={y} r={i === diaPts.length - 1 ? 3.5 : 3} fill="var(--chart-b)" />
-        ))}
-
-        <text
-          x={WIDTH - PAD_RIGHT}
-          y={sysPts[sysPts.length - 1][1] - 8}
-          fontSize={12}
-          fontWeight={700}
-          textAnchor="end"
-          fill="var(--chart-a)"
-          fontFamily="var(--font-mono)"
+    <div className="inline-flex gap-1 p-0.5 rounded-md" style={{ background: "var(--accent-soft)" }}>
+      {keys.map((k) => (
+        <button
+          key={k}
+          type="button"
+          onClick={() => onChange(k)}
+          onMouseEnter={() => setHovered(k)}
+          onMouseLeave={() => setHovered(null)}
+          className="px-2 py-1 rounded text-[11px] font-bold font-mono cursor-pointer transition-colors"
+          style={{
+            background: value === k ? "var(--panel)" : hovered === k ? "#fffefc80" : "transparent",
+            color: value === k ? "var(--accent-ink)" : "var(--muted)",
+            boxShadow: value === k ? "2px 2px 0 0 var(--line)" : "none",
+          }}
         >
-          {last.value}
-        </text>
-        <text
-          x={WIDTH - PAD_RIGHT}
-          y={diaPts[diaPts.length - 1][1] + 16}
-          fontSize={12}
-          fontWeight={700}
-          textAnchor="end"
-          fill="var(--chart-b)"
-          fontFamily="var(--font-mono)"
-        >
-          {last.value_secondary}
-        </text>
-
-        <g fontSize={10} fill="var(--muted)" textAnchor="middle" fontFamily="var(--font-mono)">
-          {points.map((p, i) => (
-            <text key={p.id} x={xAt(i)} y={176}>
-              {formatShortDate(p.taken_at)}
-            </text>
-          ))}
-        </g>
-      </svg>
-      <div className="flex gap-4 text-xs text-[var(--muted)] mt-1">
-        <span>
-          <span
-            className="inline-block w-[9px] h-[9px] rounded-full mr-1.5 align-middle"
-            style={{ background: "var(--chart-a)" }}
-          />
-          Systolic
-        </span>
-        <span>
-          <span
-            className="inline-block w-[9px] h-[9px] rounded-full mr-1.5 align-middle"
-            style={{ background: "var(--chart-b)" }}
-          />
-          Diastolic
-        </span>
-      </div>
+          {RANGE_LABELS[k]}
+        </button>
+      ))}
     </div>
   );
 }

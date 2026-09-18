@@ -1,8 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Medication, MedicationLog, Measurement, Visit } from "@/lib/types";
+import type { Allergy, Immunization, Medication, MedicationLog, Measurement, Profile, Visit } from "@/lib/types";
 import { VisitSection } from "@/components/visit-section";
 import { MedicationSection } from "@/components/medication-section";
 import { VitalsSection } from "@/components/vitals-section";
+import { AllergySection } from "@/components/allergy-section";
+import { ImmunizationSection } from "@/components/immunization-section";
+import { ProfileSection } from "@/components/profile-section";
 
 type SharedMedication = Omit<Medication, "visit_id" | "created_at"> & {
   logs: Pick<MedicationLog, "log_date" | "taken">[];
@@ -12,6 +15,9 @@ type SharedSummary = {
   visits: Omit<Visit, "created_at">[];
   medications: SharedMedication[];
   measurements: Omit<Measurement, "note">[];
+  allergies: Allergy[];
+  immunizations: Immunization[];
+  profile: Profile | null;
 };
 
 export default async function SharedSummaryPage({
@@ -51,7 +57,7 @@ export default async function SharedSummaryPage({
   });
 
   return (
-    <main className="max-w-3xl mx-auto px-6 py-8 pb-20">
+    <main className="max-w-6xl mx-auto px-8 py-10 pb-24">
       <div className="flex items-center gap-2.5 mb-1.5" aria-hidden="true">
         <span className="flex items-end gap-[2px]">
           {[0, 1, 2, 3, 4].map((i) => (
@@ -64,17 +70,26 @@ export default async function SharedSummaryPage({
         </span>
         <span className="font-display text-[17px] tracking-wide">LIFEBAR</span>
       </div>
-      <p className="text-xs text-[var(--muted)] mb-6">
+      <p className="text-xs text-[var(--muted)] mb-8">
         Read-only shared summary. Ask the person who sent you this link if anything looks out of
         date.
       </p>
 
-      <div className="grid sm:grid-cols-2 gap-4 mb-4">
+      <VitalsSection measurements={summary.measurements as Measurement[]} readOnly />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         <VisitSection visits={summary.visits as Visit[]} readOnly />
         <MedicationSection medications={medications} logsByMedication={logsByMedication} readOnly />
       </div>
 
-      <VitalsSection measurements={summary.measurements as Measurement[]} readOnly />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <AllergySection allergies={summary.allergies} readOnly />
+        <ProfileSection profile={summary.profile} readOnly />
+      </div>
+
+      <div className="mt-6">
+        <ImmunizationSection immunizations={summary.immunizations} readOnly />
+      </div>
     </main>
   );
 }

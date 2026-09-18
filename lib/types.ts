@@ -65,6 +65,59 @@ export type ShareGrant = {
   created_at: string;
 };
 
+export type AllergySeverity = "mild" | "moderate" | "severe";
+
+export type Allergy = {
+  id: string;
+  substance: string;
+  reaction: string | null;
+  severity: AllergySeverity;
+  notes: string | null;
+  created_at: string;
+};
+
+export type Immunization = {
+  id: string;
+  vaccine_name: string;
+  date_given: string;
+  notes: string | null;
+  created_at: string;
+};
+
+export type Profile = {
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
+  emergency_contact_relationship: string | null;
+  care_provider_name: string | null;
+  care_provider_phone: string | null;
+  pharmacy_name: string | null;
+  pharmacy_phone: string | null;
+};
+
+export type LabResult = {
+  id: string;
+  test_name: string;
+  result_date: string;
+  summary: string | null;
+  file_path: string | null;
+  created_at: string;
+};
+
+export const ALLERGY_SEVERITY_BADGE: Record<AllergySeverity, string> = {
+  mild: "lb-badge-good",
+  moderate: "lb-badge-warn",
+  severe: "lb-badge-critical",
+};
+
+export const MEDICATION_FREQUENCIES = [
+  "Once daily",
+  "Twice daily",
+  "Three times daily",
+  "Four times daily",
+  "As needed",
+  "Custom",
+] as const;
+
 export const MEASUREMENT_LABELS: Record<MeasurementType, string> = {
   blood_pressure: "Blood Pressure",
   glucose: "Glucose",

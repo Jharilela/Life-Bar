@@ -21,7 +21,7 @@ async function siteOrigin() {
 export default async function SharingPage() {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) redirect("/");
+  if (!userData.user) redirect("/dashboard");
 
   const [linksRes, grantsRes] = await Promise.all([
     supabase
