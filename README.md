@@ -5,6 +5,8 @@
 [![Next.js](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org)
 [![Supabase](https://img.shields.io/badge/backend-Supabase-3ecf8e.svg)](https://supabase.com)
 
+**[Live demo →](https://life-bar-pi.vercel.app/)**
+
 **Your medical history belongs to you, not to whichever patient portal your
 current doctor happens to use.**
 
